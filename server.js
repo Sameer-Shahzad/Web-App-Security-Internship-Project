@@ -5,6 +5,18 @@ const bcrypt = require("bcrypt");              // Week 2: Password hashing
 const jwt = require("jsonwebtoken");           // Week 2: Token-based authentication
 const helmet = require("helmet");              // Week 2: Secure HTTP headers
 const session = require("express-session");
+
+// Week 3: Adding Winston logging
+const winston = require("winston");  
+
+// Week 3: Logger Setup
+const logger = winston.createLogger({
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: "security.log" })
+  ]
+});
+
 const app = express();
 const port = 3000;
 
@@ -15,8 +27,8 @@ const USERS = {};
 let userIdCounter = 1;
 
 const initializeUsers = async () => {
-  const adminPassword = await bcrypt.hash("admin123", BCRYPT_ROUNDS);    // Week 2: Hashing default admin password
-  const userPassword = await bcrypt.hash("user123", BCRYPT_ROUNDS);      // Week 2: Hashing demo user password
+  const adminPassword = await bcrypt.hash("admin123", BCRYPT_ROUNDS);    
+  const userPassword = await bcrypt.hash("user123", BCRYPT_ROUNDS);      
 
   USERS["admin"] = {
     id: userIdCounter++,
@@ -35,9 +47,12 @@ const initializeUsers = async () => {
   };
 };
 
-app.use(helmet());     // Week 2: Secure HTTP headers
+app.use(helmet());     
 
 app.use(bodyParser.urlencoded({ extended: false, limit: "10kb" }));
+
+// Week 3: Logging application start
+logger.info("Application middleware initialized");
 
 app.use(
   session({
@@ -60,16 +75,22 @@ const verifyToken = (req, res, next) => {
   const token = req.session.token;
 
   if (!token) {
+    // Week 3: Logging unauthorized access
+    logger.warn("Unauthorized access attempt detected");
+
     return res.status(401).render("login", { message: "Please login first", messageType: "error" });
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);     // Week 2: Verifying token
+    const decoded = jwt.verify(token, JWT_SECRET);     
     req.userId = decoded.id;
     req.userUsername = decoded.username;
     req.isAdmin = decoded.isAdmin;
+
     next();
   } catch (err) {
+    logger.error("Invalid or expired token detected");   // Week 3 logging
+    
     req.session.token = null;
     return res.status(403).render("login", {
       message: "Session expired. Please login again",
@@ -79,7 +100,7 @@ const verifyToken = (req, res, next) => {
 };
 
 const validateEmail = (email) => {
-  return validator.isEmail(email);        // Week 2: Email validation
+  return validator.isEmail(email);        
 };
 
 const validateUsername = (username) => {
@@ -91,6 +112,8 @@ const validatePassword = (password) => {
 };
 
 app.get("/", (req, res) => {
+  logger.info("Homepage accessed");   // Week 3 logging
+
   if (req.session.token) {
     try {
       const decoded = jwt.verify(req.session.token, JWT_SECRET);
@@ -104,6 +127,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/login", (req, res) => {
+  logger.info("Login page opened"); // Week 3 logging
   res.render("login", { message: "", messageType: "" });
 });
 
@@ -111,10 +135,12 @@ app.post("/login", async (req, res) => {
   try {
     let { username, password } = req.body;
 
-    username = validator.trim(username);      // Week 2: Sanitizing input
-    password = validator.trim(password);      // Week 2: Sanitizing input
+    username = validator.trim(username);      
+    password = validator.trim(password);      
 
     if (!username || !password) {
+      logger.warn("Login failed: Missing fields");   // Week 3 logging
+
       return res.status(400).render("login", {
         message: "Username and password are required",
         messageType: "error",
@@ -122,6 +148,8 @@ app.post("/login", async (req, res) => {
     }
 
     if (username.length < 3 || username.length > 20) {
+      logger.warn("Login failed: Invalid username format");
+
       return res.status(400).render("login", {
         message: "Invalid username format",
         messageType: "error",
@@ -131,22 +159,26 @@ app.post("/login", async (req, res) => {
     const user = USERS[username];
 
     if (!user) {
+      logger.warn("Login failed: Invalid username");
+
       return res.status(401).render("login", {
         message: "Invalid credentials",
         messageType: "error",
       });
     }
 
-    const passwordMatch = await bcrypt.compare(password, user.password);   // Week 2: Comparing hashed password
+    const passwordMatch = await bcrypt.compare(password, user.password);   
 
     if (!passwordMatch) {
+      logger.warn("Login failed: Wrong password");
+
       return res.status(401).render("login", {
         message: "Invalid credentials",
         messageType: "error",
       });
     }
 
-    const token = jwt.sign(     // Week 2: Creating token after authentication
+    const token = jwt.sign(     
       {
         id: user.id,
         username: user.username,
@@ -160,8 +192,12 @@ app.post("/login", async (req, res) => {
     req.session.username = user.username;
     req.session.isAdmin = user.isAdmin;
 
+    logger.info(`User logged in: ${username}`);   // Week 3 logging
+
     return res.redirect("/profile");
   } catch (err) {
+    logger.error("Login error occurred");
+
     return res.status(500).render("login", {
       message: "An error occurred. Please try again.",
       messageType: "error",
@@ -170,6 +206,7 @@ app.post("/login", async (req, res) => {
 });
 
 app.get("/signup", (req, res) => {
+  logger.info("Signup page opened");
   res.render("signup", { message: "", messageType: "" });
 });
 
@@ -177,12 +214,14 @@ app.post("/signup", async (req, res) => {
   try {
     let { username, email, password, confirmPassword } = req.body;
 
-    username = validator.trim(username);               // Week 2: Sanitizing input
-    email = validator.trim(email).toLowerCase();       // Week 2: Sanitizing input
-    password = validator.trim(password);               // Week 2: Sanitizing input
+    username = validator.trim(username);               
+    email = validator.trim(email).toLowerCase();       
+    password = validator.trim(password);               
     confirmPassword = validator.trim(confirmPassword);
 
     if (!username || !email || !password || !confirmPassword) {
+      logger.warn("Signup failed: Missing fields");
+
       return res.status(400).render("signup", {
         message: "All fields are required",
         messageType: "error",
@@ -190,13 +229,17 @@ app.post("/signup", async (req, res) => {
     }
 
     if (!validateUsername(username)) {
+      logger.warn("Signup failed: Invalid username format");
+
       return res.status(400).render("signup", {
         message: "Username must be 3-20 alphanumeric characters",
         messageType: "error",
       });
     }
 
-    if (!validateEmail(email)) {                       // Week 2: Email validation
+    if (!validateEmail(email)) {                       
+      logger.warn("Signup failed: Invalid email");
+
       return res.status(400).render("signup", {
         message: "Invalid email address",
         messageType: "error",
@@ -204,6 +247,8 @@ app.post("/signup", async (req, res) => {
     }
 
     if (!validatePassword(password)) {
+      logger.warn("Signup failed: Weak password");
+
       return res.status(400).render("signup", {
         message: "Password must be at least 8 characters with uppercase, lowercase, and number",
         messageType: "error",
@@ -211,6 +256,8 @@ app.post("/signup", async (req, res) => {
     }
 
     if (password !== confirmPassword) {
+      logger.warn("Signup failed: Password mismatch");
+
       return res.status(400).render("signup", {
         message: "Passwords do not match",
         messageType: "error",
@@ -218,13 +265,15 @@ app.post("/signup", async (req, res) => {
     }
 
     if (USERS[username]) {
+      logger.warn("Signup failed: Username exists");
+
       return res.status(409).render("signup", {
         message: "Username already exists",
         messageType: "error",
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);   // Week 2: Hashing password
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);   
 
     USERS[username] = {
       id: userIdCounter++,
@@ -234,11 +283,15 @@ app.post("/signup", async (req, res) => {
       isAdmin: false,
     };
 
+    logger.info(`New user registered: ${username}`);
+
     return res.render("signup", {
       message: "Signup successful! Please login.",
       messageType: "success",
     });
   } catch (err) {
+    logger.error("Signup error occurred");
+
     return res.status(500).render("signup", {
       message: "An error occurred. Please try again.",
       messageType: "error",
@@ -247,10 +300,6 @@ app.post("/signup", async (req, res) => {
 });
 
 app.get("/profile", verifyToken, (req, res) => {
-  if (req.isAdmin) {
-    return res.redirect("/admin");
-  }
-
   const user = USERS[req.userUsername];
   res.render("profile", {
     user: user.username,
@@ -262,6 +311,8 @@ app.get("/profile", verifyToken, (req, res) => {
 
 app.get("/admin", verifyToken, (req, res) => {
   if (!req.isAdmin) {
+    logger.warn("Unauthorized admin page access");
+
     return res.status(403).render("access-denied", {
       username: req.userUsername,
       message: "You do not have admin privileges to access this page.",
@@ -289,8 +340,12 @@ app.get("/users", verifyToken, (req, res) => {
 });
 
 app.get("/logout", (req, res) => {
+  logger.info("User logged out"); // Week 3 logging
+
   req.session.destroy((err) => {
     if (err) {
+      logger.error("Logout error");
+
       return res.status(500).send("Error logging out");
     }
     res.redirect("/login");
@@ -298,6 +353,8 @@ app.get("/logout", (req, res) => {
 });
 
 app.use((req, res) => {
+  logger.warn("404 error triggered"); // Week 3 logging
+
   res.status(404).render("login", {
     message: "Page not found",
     messageType: "error",
@@ -305,6 +362,8 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
+  logger.error("Unhandled application error detected"); // Week 3 logging
+
   res.status(err.status || 500).render("login", {
     message: "An error occurred. Please try again.",
     messageType: "error",
@@ -314,6 +373,8 @@ app.use((err, req, res, next) => {
 const startServer = async () => {
   await initializeUsers();
 
+  logger.info("Server started successfully"); // Week 3 logging
+
   app.listen(port, () => {
     console.log(`App running at http://localhost:${port}`);
     console.log(`Admin: admin / admin123`);
@@ -322,3 +383,11 @@ const startServer = async () => {
 };
 
 startServer();
+
+// Week 3: Security Checklist (Only comment)
+// - Validate all inputs
+// - Use HTTPS
+// - Hash & salt passwords
+// - Enable helmet
+// - Implement logging
+// - Secure cookies
