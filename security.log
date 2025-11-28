@@ -1,0 +1,34 @@
+{"level":"info","message":"Application middleware initialized"}
+{"level":"info","message":"Server started successfully"}
+{"level":"info","message":"Signup page opened"}
+{"level":"warn","message":"404 error triggered"}
+{"level":"info","message":"Homepage accessed"}
+{"level":"info","message":"Signup page opened"}
+{"level":"info","message":"Login page opened"}
+{"level":"warn","message":"Unauthorized access attempt detected"}
+{"level":"warn","message":"Unauthorized access attempt detected"}
+{"level":"info","message":"User logged in: testuser"}
+{"level":"warn","message":"Unauthorized admin page access"}
+{"level":"info","message":"User logged out"}
+{"level":"info","message":"Login page opened"}
+{"level":"warn","message":"Login failed: Invalid username"}
+
+{"level":"warn","message":"Login failed: Invalid username"}
+{"level":"warn","message":"Unauthorized access attempt detected"}
+{"level":"info","message":"User logged in: testuser"}
+{"level":"warn","message":"Unauthorized admin page access"}
+{"level":"info","message":"Homepage accessed"}
+{"level":"info","message":"Login page opened"}
+{"level":"info","message":"Signup page opened"}
+{"level":"info","message":"New user registered: Sameer"}
+{"level":"warn","message":"Signup failed: Invalid username format"}
+{"level":"info","message":"Login page opened"}
+{"level":"info","message":"User logged in: testuser"}
+{"level":"info","message":"User logged out"}
+{"level":"info","message":"Login page opened"}
+{"level":"warn","message":"Login failed: Invalid username"}
+{"level":"info","message":"User logged in: testuser"}
+{"level":"warn","message":"Unauthorized admin page access"}
+{"level":"info","message":"User logged out"}
+{"level":"info","message":"Login page opened"}
+{"level":"warn","message":"Login failed: Invalid username"}
